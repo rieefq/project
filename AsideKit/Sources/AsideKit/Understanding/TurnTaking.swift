@@ -20,6 +20,17 @@ public struct Endpointer: Sendable {
         public var maximumDuration: TimeInterval = 30.0
 
         public init() {}
+
+        /// While a shortcut is held, the user decides when the turn ends (on release).
+        public static var holdToTalk: Configuration {
+            var configuration = Configuration()
+            configuration.baseSilence = .infinity
+            configuration.completeSilence = .infinity
+            configuration.danglingSilence = .infinity
+            configuration.initialTimeout = .infinity
+            configuration.maximumDuration = 60
+            return configuration
+        }
     }
 
     public enum Decision: Sendable, Hashable {

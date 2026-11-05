@@ -630,7 +630,7 @@ public struct FastPathParser: Sendable {
         if let start = after(u, [["where", "did", "i", "park"], ["where's", "my", "car"], ["where", "is", "my", "car"], ["where", "did", "i", "leave", "my"],
                                  ["where", "did", "i", "put", "my"]]) {
             let tail = text(u, start..<u.count)
-            return .call(name: "recall", arguments: ["query": .string("parked " + tail + " " + u.raw), "fallthrough": true], confidence: 0.7)
+            return .call(name: "recall", arguments: ["query": .string("parked " + tail + " " + u.raw), "fallthrough": true], confidence: 0.8)
         }
         // "what's my gate code", "what's my wife's name" — answerable only if remembered.
         // Personal ("my") questions try memory first; if nothing is saved they fall through to a model.

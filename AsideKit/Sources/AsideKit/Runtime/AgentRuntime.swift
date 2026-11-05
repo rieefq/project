@@ -120,6 +120,9 @@ public final class AgentRuntime {
     public func activate(source: ActivationSource) {
         activation = source
         if let last = lastInteractionAt, now.timeIntervalSince(last) > sessionTimeout { endSession() }
+        // Summoning Aside again means "listen to me now": drop whatever it was saying or doing,
+        // except a question it asked, which the user is about to answer.
+        if pending == nil, phase == .thinking || phase == .speaking { interrupt() }
         if deps.speechOutput.isSpeaking { deps.speechOutput.stop() }
         Task { await refreshPreferences() }
         // If Aside asked something, a fresh activation answers it.
@@ -128,7 +131,7 @@ public final class AgentRuntime {
 
     /// Push-to-talk released: the user is done talking.
     public func pushToTalkEnded() {
-        guard phase == .listening else { return }
+        guard phase == .listening || phase == .waiting else { return }
         endpointTask?.cancel()
         if transcript.trimmingCharacters(in: .whitespaces).isEmpty {
             // Give the recognizer a moment to deliver the last words.
@@ -144,8 +147,9 @@ public final class AgentRuntime {
     /// A quick tap of the shortcut (rather than a hold) switches to hands-free listening:
     /// Aside keeps listening and decides itself when the user has finished.
     public func continueHandsFree() {
-        guard phase == .listening else { return }
+        guard phase == .listening || phase == .waiting else { return }
         activation = .tap
+        endpointer?.configuration = Endpointer.Configuration()
         startEndpointing()
     }
 
@@ -220,7 +224,7 @@ public final class AgentRuntime {
         activity = nil
         lastInteractionAt = now
         if earcon { play(.listening) }
-        endpointer = Endpointer(startedAt: now)
+        endpointer = Endpointer(configuration: activation == .pushToTalk ? .holdToTalk : Endpointer.Configuration(), startedAt: now)
         deps.speechInput.beginTurn()
         if !deps.speechInput.isCapturing {
             isMicrophoneActive = true
@@ -252,7 +256,6 @@ public final class AgentRuntime {
 
     private func startEndpointing() {
         endpointTask?.cancel()
-        guard activation != .pushToTalk || phase == .waiting else { return }
         endpointTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)
@@ -324,6 +327,7 @@ public final class AgentRuntime {
             }
             // A real interruption: stop talking and listen to the new request.
             interrupt()
+            activation = .tap
             transcript = trimmed
             heardSpeechThisTurn = true
             endpointer = Endpointer(startedAt: now)
@@ -376,6 +380,8 @@ public final class AgentRuntime {
         let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         deps.speechInput.beginTurn()
         endpointer = nil
+        // Holding the shortcut applies to one turn; follow-ups and answers are hands-free.
+        if activation == .pushToTalk { activation = .tap }
         guard !text.isEmpty else {
             if pending != nil { pending?.resolve(.timeout); return }
             stopListening()

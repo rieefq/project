@@ -128,6 +128,17 @@ struct RuntimeTests {
         #expect(await eventually { h.output.stops > 0 && h.runtime.phase == .idle })
     }
 
+    @Test func interruptingWithANewRequestHandlesIt() async {
+        let h = Harness()
+        h.output.holdUntilStopped = true
+        await h.say("what time is it")
+        #expect(await eventually { h.runtime.phase == .speaking })
+        h.input.say("set a timer for 5 minutes")
+        #expect(await eventually { h.runtime.phase == .listening })
+        h.clock.advance(by: 2)
+        #expect(await h.heard("5 minutes, starting now."))
+    }
+
     @Test func openQuestionsGoToTheCloudModel() async {
         let reasoner = ScriptedReasoner(script: [(nil, "Paris.")])
         let h = Harness(reasoner: reasoner)
