@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Toolchain
         run: |
           xcodebuild -version
@@ -28,3 +28,33 @@ jobs:
         run: |
           set -o pipefail
           swift test --package-path AsideKit 2>&1 | tee test.log | tail -300
+
+  apps:
+    name: Build ${{ matrix.scheme }}
+    runs-on: macos-26
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scheme: Aside-macOS
+            destination: generic/platform=macOS
+          - scheme: Aside-iOS
+            destination: generic/platform=iOS Simulator
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project Aside.xcodeproj -scheme "${{ matrix.scheme }}" -destination "${{ matrix.destination }}" \
+            -configuration Debug -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*deprecated|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" xcodebuild.log
+      - name: Errors
+        if: failure()
+        run: grep -E "error:" xcodebuild.log | sort -u | head -150 || true

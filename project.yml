@@ -1,0 +1,152 @@
+# Aside — Xcode project specification.
+# Generate the project with XcodeGen (https://github.com/yonaskolb/XcodeGen):
+#   brew install xcodegen && xcodegen generate
+name: Aside
+
+options:
+  bundleIdPrefix: app.aside
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+  groupSortPosition: top
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    DEVELOPMENT_TEAM: ""            # Set your team ID to run on devices.
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ASSETCATALOG_COMPILER_APPICON_NAME: ""
+    # Spotify Web API client ID (PKCE; no secret). Leave empty to hide Spotify.
+    ASIDE_SPOTIFY_CLIENT_ID: ""
+
+packages:
+  AsideKit:
+    path: AsideKit
+
+targets:
+  Aside-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: Apps/Shared
+      - path: Apps/macOS
+    dependencies:
+      - package: AsideKit
+    settings:
+      base:
+        PRODUCT_NAME: Aside
+        PRODUCT_BUNDLE_IDENTIFIER: app.aside.mac
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: Apps/macOS/Info.plist
+      properties:
+        CFBundleDisplayName: Aside
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: ""
+        NSMicrophoneUsageDescription: Aside listens only while you're talking to it — after you press the shortcut or click the menu bar — so it can hear your request.
+        NSSpeechRecognitionUsageDescription: Used only while Aside's on-device speech model is still downloading, to understand what you say.
+        NSRemindersFullAccessUsageDescription: So Aside can create, read and update reminders when you ask.
+        NSCalendarsFullAccessUsageDescription: So Aside can tell you what's on your schedule and add events when you ask.
+        NSContactsUsageDescription: So Aside can find the person you want to message or call.
+        NSLocationUsageDescription: So Aside can give you local weather, nearby places and travel times.
+        NSLocationWhenInUseUsageDescription: So Aside can give you local weather, nearby places and travel times.
+        NSAppleMusicUsageDescription: So Aside can play music from Apple Music when you ask.
+        AsideSpotifyClientID: $(ASIDE_SPOTIFY_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleURLName: app.aside
+            CFBundleURLSchemes: [aside]
+    entitlements:
+      path: Apps/macOS/Aside.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.network.client: true
+        com.apple.security.personal-information.calendars: true
+        com.apple.security.personal-information.addressbook: true
+        com.apple.security.personal-information.location: true
+        com.apple.developer.weatherkit: true
+
+  Aside-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/Shared
+      - path: Apps/iOS
+      - path: Apps/Intents
+    dependencies:
+      - package: AsideKit
+      - target: AsideControls
+    settings:
+      base:
+        PRODUCT_NAME: Aside
+        PRODUCT_BUNDLE_IDENTIFIER: app.aside.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    info:
+      path: Apps/iOS/Info.plist
+      properties:
+        CFBundleDisplayName: Aside
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIBackgroundModes: [audio]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSMicrophoneUsageDescription: Aside listens only while you're talking to it — after you tap, hold, or start it from a control — so it can hear your request.
+        NSSpeechRecognitionUsageDescription: Used only while Aside's on-device speech model is still downloading, to understand what you say.
+        NSRemindersFullAccessUsageDescription: So Aside can create, read and update reminders when you ask.
+        NSCalendarsFullAccessUsageDescription: So Aside can tell you what's on your schedule and add events when you ask.
+        NSContactsUsageDescription: So Aside can find the person you want to message or call.
+        NSLocationWhenInUseUsageDescription: So Aside can give you local weather, nearby places and travel times.
+        NSAppleMusicUsageDescription: So Aside can play music from Apple Music when you ask.
+        NSFaceIDUsageDescription: To confirm it's you before Aside does something sensitive, like erasing your data.
+        LSApplicationQueriesSchemes: [spotify]
+        AsideSpotifyClientID: $(ASIDE_SPOTIFY_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleURLName: app.aside
+            CFBundleURLSchemes: [aside]
+    entitlements:
+      path: Apps/iOS/Aside.entitlements
+      properties:
+        com.apple.developer.weatherkit: true
+        com.apple.developer.usernotifications.time-sensitive: true
+
+  AsideControls:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Apps/Controls
+      - path: Apps/Intents/ListenIntent.swift
+    settings:
+      base:
+        PRODUCT_NAME: AsideControls
+        PRODUCT_BUNDLE_IDENTIFIER: app.aside.ios.controls
+        OTHER_SWIFT_FLAGS: "$(inherited) -DASIDE_WIDGET_EXTENSION"
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+    info:
+      path: Apps/Controls/Info.plist
+      properties:
+        CFBundleDisplayName: Aside Controls
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+schemes:
+  Aside-macOS:
+    build:
+      targets:
+        Aside-macOS: all
+  Aside-iOS:
+    build:
+      targets:
+        Aside-iOS: all
+        AsideControls: all

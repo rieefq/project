@@ -1,0 +1,11 @@
+Aside.xcodeproj/
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+Apps/macOS/Info.plist
+Apps/iOS/Info.plist
+Apps/Controls/Info.plist
+Apps/macOS/Aside.entitlements
+Apps/iOS/Aside.entitlements
