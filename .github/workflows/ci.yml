@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  environment:
+    name: Toolchain probe
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - name: Xcode and SDKs
+        run: |
+          sw_vers
+          xcodebuild -version
+          ls /Applications | grep -i xcode || true
+          xcodebuild -showsdks
+          xcrun simctl list runtimes
+          xcrun simctl list devicetypes | grep -i iphone | tail -5
+          swift --version
+          brew --version
