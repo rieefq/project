@@ -311,11 +311,24 @@ public final class AgentRuntime {
             endpointer?.transcriptChanged(trimmed, at: now)
         case .speaking, .thinking:
             guard preferences.allowInterruptions else { return }
+            let utterance = Utterance(trimmed)
+            if let pending, isLikelyAnswer(utterance, to: pending) {
+                takeAnswerOverQuestion(trimmed)
+                return
+            }
             guard echoGuard.isGenuineInterruption(trimmed) else {
                 deps.speechOutput.duck(false)
                 return
             }
-            let utterance = Utterance(trimmed)
+            if pending != nil {
+                if let command = ControlCommandParser.parse(utterance), [.stop, .cancel, .dismiss, .done].contains(command) {
+                    deps.speechInput.beginTurn()
+                    Task { await self.handleControl(command) }
+                    return
+                }
+                takeAnswerOverQuestion(trimmed)
+                return
+            }
             if let command = ControlCommandParser.parse(utterance) {
                 deps.speechInput.beginTurn()
                 Task { await self.handleControl(command) }
@@ -337,6 +350,33 @@ public final class AgentRuntime {
         case .idle:
             break
         }
+    }
+
+    /// An answer spoken over the question. Answers made only of words the question itself
+    /// contains ("Sam Patel" after "…Sam Lee or Sam Patel?") can't be told apart from echo on a
+    /// speaker, so those wait for the question to finish; anything with new words counts now.
+    private func isLikelyAnswer(_ utterance: Utterance, to pending: PendingInteraction) -> Bool {
+        let questionWords = Set(Utterance(lastReply ?? "").norms)
+        guard utterance.norms.contains(where: { !questionWords.contains($0) }) else { return false }
+        switch pending.kind {
+        case .confirmation, .offer:
+            return AnswerParser.yesNo(utterance) != nil
+        case .choice(let request):
+            return AnswerParser.choice(utterance, options: request.options.map(\.label)) != nil
+        case .slot:
+            return echoGuard.isGenuineInterruption(utterance.raw)
+        }
+    }
+
+    private func takeAnswerOverQuestion(_ text: String) {
+        deps.speechOutput.stop()
+        echoGuard.reset()
+        phase = .waiting
+        transcript = text
+        heardSpeechThisTurn = true
+        if endpointer == nil { endpointer = Endpointer(startedAt: now) }
+        endpointer?.transcriptChanged(text, at: now)
+        startEndpointing()
     }
 
     private func interrupt() {
@@ -477,7 +517,10 @@ public final class AgentRuntime {
         guard !interaction.isResolved else {
             return await interaction.answer()
         }
-        startListening(earcon: false, asAnswer: true)
+        // The user may already be answering (they spoke over the question).
+        if !(phase == .waiting && endpointer != nil) {
+            startListening(earcon: false, asAnswer: true)
+        }
         let timer = Task { [weak interaction] in
             try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
             interaction?.resolve(.timeout)

@@ -118,6 +118,21 @@ struct RuntimeTests {
         #expect(await h.communication.composed.first?.recipient.name == "Sam Patel")
     }
 
+    @Test func answeringOverTheQuestionCounts() async {
+        let h = Harness(contacts: [
+            ContactMatch(id: "c1", name: "Sam Lee", handles: [ContactHandle(kind: .phone, value: "+1 555 0100")]),
+            ContactMatch(id: "c2", name: "Sam Patel", handles: [ContactHandle(kind: .phone, value: "+1 555 0101")]),
+        ])
+        h.output.holdUntilStopped = true
+        await h.say("text Sam saying hi")
+        #expect(await h.heard("Which Sam — Sam Lee or Sam Patel?"))
+        #expect(await eventually { h.output.isSpeaking })
+        h.input.say("the second one")
+        #expect(await eventually { h.runtime.phase == .waiting && !h.output.isSpeaking })
+        h.clock.advance(by: 2)
+        #expect(await h.heard("Sent to Sam Patel."))
+    }
+
     @Test func stopInterruptsSpeech() async {
         let h = Harness()
         h.output.holdUntilStopped = true
