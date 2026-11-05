@@ -317,7 +317,7 @@ public struct WeatherReport: Sendable, Hashable {
     }
 }
 
-public protocol WeatherService: Sendable {
+public protocol WeatherProvider: Sendable {
     func access() async -> AccessState
     func requestAccess() async -> AccessState
     /// Weather for a named place, or the current location when `place` is nil.

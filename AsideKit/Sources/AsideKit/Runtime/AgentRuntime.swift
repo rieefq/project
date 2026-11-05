@@ -141,6 +141,14 @@ public final class AgentRuntime {
         }
     }
 
+    /// A quick tap of the shortcut (rather than a hold) switches to hands-free listening:
+    /// Aside keeps listening and decides itself when the user has finished.
+    public func continueHandsFree() {
+        guard phase == .listening else { return }
+        activation = .tap
+        startEndpointing()
+    }
+
     /// Close everything without speaking (Escape, tap outside, "never mind").
     public func dismiss() {
         turnTask?.cancel()

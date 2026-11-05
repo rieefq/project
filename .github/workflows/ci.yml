@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   core:
-    name: AsideKit — build & test
+    name: AsideKit build and test
     runs-on: macos-26
     timeout-minutes: 25
     steps:
@@ -21,6 +21,10 @@ jobs:
           xcodebuild -version
           swift --version
       - name: Build
-        run: swift build --package-path AsideKit 2>&1 | tee build.log | grep -E "error:|warning: .*(Sendable|isolat)|Compiling|Build complete" | head -400
+        run: |
+          set -o pipefail
+          swift build --package-path AsideKit 2>&1 | tee build.log | grep -E "error|warning: .*(Sendable|isolat)|Build complete"
       - name: Test
-        run: swift test --package-path AsideKit 2>&1 | tail -250
+        run: |
+          set -o pipefail
+          swift test --package-path AsideKit 2>&1 | tee test.log | tail -300

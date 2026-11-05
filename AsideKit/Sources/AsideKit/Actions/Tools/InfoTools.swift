@@ -3,9 +3,9 @@ import Foundation
 // MARK: - Weather
 
 public struct GetWeatherTool: ToolHandler {
-    let service: WeatherService
+    let service: WeatherProvider
 
-    public init(service: WeatherService) { self.service = service }
+    public init(service: WeatherProvider) { self.service = service }
 
     public var spec: ToolSpec {
         ToolSpec(

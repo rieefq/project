@@ -94,13 +94,13 @@ public struct AsideServices: Sendable {
     public var calendar: (any CalendarService)?
     public var notifications: (any NotificationScheduler)?
     public var music: [any MusicService]
-    public var weather: (any WeatherService)?
+    public var weather: (any WeatherProvider)?
     public var places: (any PlacesService)?
     public var contacts: (any ContactsService)?
     public var communication: (any CommunicationService)?
 
     public init(reminders: (any RemindersService)? = nil, calendar: (any CalendarService)? = nil, notifications: (any NotificationScheduler)? = nil,
-                music: [any MusicService] = [], weather: (any WeatherService)? = nil, places: (any PlacesService)? = nil,
+                music: [any MusicService] = [], weather: (any WeatherProvider)? = nil, places: (any PlacesService)? = nil,
                 contacts: (any ContactsService)? = nil, communication: (any CommunicationService)? = nil) {
         self.reminders = reminders
         self.calendar = calendar
