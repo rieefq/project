@@ -31,7 +31,11 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationC
 
     private var runtime: AgentRuntime { environment.runtime }
 
+    /// The live delegate (with an adaptor, `NSApp.delegate` is SwiftUI's proxy, not this object).
+    private(set) static weak var current: MacAppDelegate?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        MacAppDelegate.current = self
         NSApp.setActivationPolicy(.accessory)
         UNUserNotificationCenter.current().delegate = self
         panel = PresencePanel(runtime: runtime)
@@ -262,7 +266,7 @@ struct MacGeneralSettings: View {
                 }
                 .onChange(of: shortcut) { _, newValue in
                     if let data = try? JSONEncoder().encode(newValue) { UserDefaults.standard.set(data, forKey: "aside.shortcut") }
-                    (NSApp.delegate as? MacAppDelegate)?.registerActivationShortcut()
+                    MacAppDelegate.current?.registerActivationShortcut()
                 }
                 Text("Hold the shortcut while you talk, or tap it once and just speak — Aside notices when you're done. Press it again to finish, or Esc to cancel.")
                     .font(.footnote)
