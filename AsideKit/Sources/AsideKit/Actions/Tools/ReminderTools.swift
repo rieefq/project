@@ -358,7 +358,7 @@ public struct UpdateReminderTool: ToolHandler {
                 if let oldDue = reminder.due { undoArguments["due_iso"] = .string(ISODates.string(oldDue, timeZone: context.temporal.timeZone)) }
                 let speech: SpeechPlan
                 if let newWhen, let due = updated.due {
-                    let phrase = context.formatter.when(due, includeTime: newWhen.hasTime)
+                    let phrase = context.formatter.destination(due, includeTime: newWhen.hasTime)
                     speech = SpeechPlan(minimal: "Moved to \(phrase).", balanced: "Okay, moved it to \(phrase).",
                                         detailed: "Okay, “\(updated.title)” is now \(context.formatter.when(due, includeTime: true, includeWeekday: true)).")
                 } else {

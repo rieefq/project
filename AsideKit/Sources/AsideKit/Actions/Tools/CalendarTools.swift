@@ -327,7 +327,7 @@ public struct UpdateEventTool: ToolHandler {
         }
         do {
             let updated = try await service.update(id: id, with: patch)
-            let when = context.formatter.when(updated.start, includeTime: !updated.isAllDay)
+            let when = context.formatter.destination(updated.start, includeTime: !updated.isAllDay)
             var undoArguments: JSONValue = ["id": .string(id), "title": .string(event.title),
                                             "start_iso": .string(ISODates.string(event.start, timeZone: context.temporal.timeZone))]
             undoArguments["duration_minutes"] = .number(event.end.timeIntervalSince(event.start) / 60)

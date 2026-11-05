@@ -103,6 +103,15 @@ public struct SpokenFormatter: Sendable {
         return text
     }
 
+    /// The same phrase without a leading preposition, for "moved it to …": "Saturday at 9 AM", "5 PM".
+    public func destination(_ date: Date, includeTime: Bool) -> String {
+        var text = when(date, includeTime: includeTime)
+        for prefix in ["on ", "at "] where text.hasPrefix(prefix) {
+            text.removeFirst(prefix.count)
+        }
+        return text
+    }
+
     // MARK: Durations
 
     /// "10 minutes", "an hour and a half", "2 hours and 5 minutes", "30 seconds".

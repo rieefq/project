@@ -78,6 +78,16 @@ struct RuntimeTests {
         #expect(await h.reminders.items.first?.due == date(2026, 11, 6, 17, 0))
     }
 
+    @Test func correctionToAWeekdayReadsNaturally() async {
+        let h = Harness()
+        await h.say("Remind me to change my toothbrush in 30 days")
+        #expect(await h.heard("Okay, I'll remind you to change your toothbrush on December 5th."))
+        _ = await eventually { h.runtime.phase == .idle }
+        await h.say("Actually, make it Saturday morning.")
+        #expect(await h.heard("Okay, moved it to Saturday at 9 AM."))
+        #expect(await h.reminders.items.first?.due == date(2026, 11, 7, 9, 0))
+    }
+
     @Test func cancelThatUndoes() async {
         let h = Harness()
         await h.say("remind me to buy milk")
