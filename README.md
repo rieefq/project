@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.png" width="160" alt="Aside"></p>
+
 # Aside
 
 **A voice-first personal agent for Mac and iPhone.** Summon it, say what you want, and it gets done.
