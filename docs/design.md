@@ -40,7 +40,7 @@ Aside decides when you've finished speaking with an **adaptive endpointer** inst
 - a sentence that trails off on "to", "and", "at"… gets ~1.7 s, so "remind me to… call the dentist" isn't cut off;
 - otherwise ~0.8 s.
 
-When Aside asks a question ("Which Sam — Sam Lee or Sam Patel?") the microphone stays open for the answer; no re-summoning.
+When Aside asks a question ("Which Sam — Sam Lee or Sam Patel?") the microphone stays open for the answer; no re-summoning. You can answer before it finishes asking ("the second one") and it stops talking; an answer made only of words the question itself contains ("Sam Patel") waits until the question ends, so Aside never mistakes its own voice for yours.
 
 ### Interruptions and corrections
 

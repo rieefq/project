@@ -21,7 +21,7 @@ It handles the way people actually talk: "stop", "cancel that", "never mind", "c
 ## Repository
 
 ```
-AsideKit/          Platform-independent core (Swift package, 80 tests)
+AsideKit/          Platform-independent core (Swift package, 83 tests)
   Language/        Tokenizer, number words, durations, temporal parser, spoken formatting
   Understanding/   Fast-path grammar, control commands, corrections, endpointing, echo guard
   Actions/         Tool registry, policy engine, action engine, journal, tools

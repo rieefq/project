@@ -86,7 +86,7 @@ Everything that might change is behind a protocol:
 | `SpeechOutput` | AVSpeechSynthesizer (incl. Personal Voice) | Neural/cloud voices with the same buffer pipeline |
 | `Reasoner` | ClaudeReasoner | Other models, a relay with org policies, model routing by task |
 | `LocalIntentModel` | Foundation Models | Larger on-device models, adapters |
-| `ToolHandler` | 28 tools | New integrations register tools; policy and journal apply automatically |
+| `ToolHandler` | 30 tools | New integrations register tools; policy and journal apply automatically |
 | `Card` | 10 transient card types | Images, documents, diagrams — added as card types and tool result types, not as a new UI paradigm |
 | `PersistentStore` | AES-GCM files, Keychain key | CloudKit end-to-end-encrypted sync for memory and preferences |
 
@@ -105,4 +105,4 @@ Multimodal input (camera, documents) fits the same pipeline: an observation beco
 
 ## Testing
 
-`swift test --package-path AsideKit` runs 80 tests in 15 suites: tokenizer, numbers, durations, ~50 temporal cases against a fixed clock and time zone, the grammar, control phrases and corrections, endpointing and echo rejection, policy tiers, the engine (grounded dates, dedupe, undo, honest failures, permissions, device authentication), tools, SSE parsing and content-block reconstruction, request construction, and **scripted end-to-end conversations** through the real runtime with fake speech I/O: create → correct → cancel, contact disambiguation by voice, barge-in, cloud tool calls governed locally, offline behavior, the Siri text path and discreet mode. CI builds both apps on every push.
+`swift test --package-path AsideKit` runs 83 tests in 15 suites: tokenizer, numbers, durations, ~50 temporal cases against a fixed clock and time zone, the grammar, control phrases and corrections, endpointing and echo rejection, policy tiers, the engine (grounded dates, dedupe, undo, honest failures, permissions, device authentication), tools, SSE parsing and content-block reconstruction, request construction, and **scripted end-to-end conversations** through the real runtime with fake speech I/O: create → correct → cancel, contact disambiguation by voice, barge-in, cloud tool calls governed locally, offline behavior, the Siri text path and discreet mode. CI builds both apps on every push.
