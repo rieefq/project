@@ -60,6 +60,9 @@ public actor ClaudeReasoner: Reasoner {
     private var messages: [JSONValue] = []
     private var sessionSystem: [JSONValue]?
     public private(set) var lastUsage: JSONValue?
+    /// Per-turn streaming state (the actor serializes access).
+    private var chunker = SentenceChunker()
+    private var eventSink: (@Sendable (ReasonerEvent) async -> Void)?
 
     public init(configuration: ClaudeConfiguration, session: URLSession = .shared, credentials: @escaping CredentialProvider) {
         self.configuration = configuration
@@ -106,23 +109,16 @@ public actor ClaudeReasoner: Reasoner {
         var externalContent = false
         var continuations = 0
 
+        eventSink = events
+        defer { eventSink = nil }
+
         for _ in 0..<8 {
             try Task.checkCancellation()
-            var chunker = SentenceChunker()
+            chunker = SentenceChunker()
             let accumulator: MessageAccumulator
             do {
                 accumulator = try await stream(body(tools: tools, locality: turn.locality, timeZone: turn.context.temporal.timeZone),
-                                               credential: credential) { delta in
-                    switch delta {
-                    case .text(let text):
-                        for chunk in chunker.append(text) {
-                            let speakable = SpeechText.sanitize(chunk)
-                            if !speakable.isEmpty { await events(.speech(speakable)) }
-                        }
-                    case .toolUseStarted(let name, let isServer):
-                        await events(.toolStarted(name: isServer ? "web_search" : name))
-                    }
-                }
+                                               credential: credential)
             } catch {
                 // Keep the transcript valid: drop this turn's unanswered user message.
                 if messages.count == turnStart + 1 { messages.removeLast() }
@@ -252,13 +248,12 @@ public actor ClaudeReasoner: Reasoner {
 
     // MARK: Streaming
 
-    private func stream(_ body: JSONValue, credential: ClaudeConfiguration.Credential,
-                        onDelta: (MessageAccumulator.Delta) async -> Void) async throws -> MessageAccumulator {
+    private func stream(_ body: JSONValue, credential: ClaudeConfiguration.Credential) async throws -> MessageAccumulator {
         var attempt = 0
         while true {
             attempt += 1
             do {
-                return try await streamOnce(urlRequest(body, credential: credential), onDelta: onDelta)
+                return try await streamOnce(urlRequest(body, credential: credential))
             } catch let error as RetryableError where attempt < 2 {
                 try await Task.sleep(nanoseconds: UInt64(error.delay * 1_000_000_000))
                 continue
@@ -273,44 +268,59 @@ public actor ClaudeReasoner: Reasoner {
         var delay: TimeInterval
     }
 
-    private func streamOnce(_ request: URLRequest, onDelta: (MessageAccumulator.Delta) async -> Void) async throws -> MessageAccumulator {
+    /// Forwards a streamed delta: speakable sentences as soon as they're complete, tool starts for status.
+    private func emit(_ delta: MessageAccumulator.Delta) async {
+        switch delta {
+        case .text(let text):
+            for chunk in chunker.append(text) {
+                let speakable = SpeechText.sanitize(chunk)
+                if !speakable.isEmpty { await eventSink?(.speech(speakable)) }
+            }
+        case .toolUseStarted(let name, let isServer):
+            await eventSink?(.toolStarted(name: isServer ? "web_search" : name))
+        }
+    }
+
+    private func process(_ event: SSEParser.Event, into accumulator: inout MessageAccumulator, received: inout Bool) async throws {
+        for delta in accumulator.handle(event) {
+            received = true
+            await emit(delta)
+        }
+        if let message = accumulator.errorMessage {
+            if !received, accumulator.errorType == "overloaded_error" || accumulator.errorType == "api_error" {
+                throw RetryableError(underlying: .unavailable(message), delay: 1.2)
+            }
+            throw ReasonerError.badResponse(message)
+        }
+    }
+
+    private func streamOnce(_ request: URLRequest) async throws -> MessageAccumulator {
         var parser = SSEParser()
         var accumulator = MessageAccumulator()
-        var receivedContent = false
-
-        func handle(_ events: [SSEParser.Event]) async throws {
-            for event in events {
-                for delta in accumulator.handle(event) {
-                    receivedContent = true
-                    await onDelta(delta)
-                }
-                if let message = accumulator.errorMessage {
-                    if !receivedContent, accumulator.errorType == "overloaded_error" || accumulator.errorType == "api_error" {
-                        throw RetryableError(underlying: .unavailable(message), delay: 1.2)
-                    }
-                    throw ReasonerError.badResponse(message)
-                }
-            }
-        }
+        var received = false
 
         do {
             #if canImport(FoundationNetworking)
             let (data, response) = try await session.data(for: request)
             try check(response, body: data)
-            try await handle(parser.feed(data))
+            for event in parser.feed(data) { try await process(event, into: &accumulator, received: &received) }
             #else
             let (bytes, response) = try await session.bytes(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
                 var data = Data()
-                for try await byte in bytes { data.append(byte); if data.count > 64_000 { break } }
+                for try await byte in bytes {
+                    data.append(byte)
+                    if data.count > 64_000 { break }
+                }
                 try check(response, body: data)
             }
             for try await byte in bytes {
-                let events = parser.feed(CollectionOfOne(byte))
-                if !events.isEmpty { try await handle(events) }
+                for event in parser.feed(CollectionOfOne(byte)) {
+                    try await process(event, into: &accumulator, received: &received)
+                }
             }
             #endif
-            if let last = parser.finish() { try await handle([last]) }
+            if let last = parser.finish() { try await process(last, into: &accumulator, received: &received) }
         } catch let error as RetryableError {
             throw error
         } catch let error as ReasonerError {
@@ -323,7 +333,7 @@ public actor ClaudeReasoner: Reasoner {
             case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dataNotAllowed, .internationalRoamingOff:
                 throw ReasonerError.offline
             case .timedOut:
-                if receivedContent { throw ReasonerError.unavailable("timed out") }
+                if received { throw ReasonerError.unavailable("timed out") }
                 throw RetryableError(underlying: .unavailable("timed out"), delay: 0.5)
             default:
                 throw ReasonerError.unavailable(error.localizedDescription)
