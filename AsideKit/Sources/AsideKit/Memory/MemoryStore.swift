@@ -200,7 +200,8 @@ public actor MemoryStore {
         let terms = Array(Set(TextIndex.keywords(query)))
         guard !terms.isEmpty, !items.isEmpty else { return [] }
         let documents = items.map { TextIndex.keywords($0.text) }
-        let averageLength = max(1, Double(documents.map(\.count).reduce(0, +)) / Double(documents.count))
+        let totalLength: Int = documents.reduce(0) { $0 + $1.count }
+        let averageLength: Double = max(1.0, Double(totalLength) / Double(documents.count))
         var documentFrequency: [String: Int] = [:]
         for document in documents {
             for term in terms where document.contains(where: { Self.matches($0, term) }) { documentFrequency[term, default: 0] += 1 }
@@ -214,15 +215,20 @@ public actor MemoryStore {
                 let frequency = Double(document.filter { Self.matches($0, term) }.count)
                 guard frequency > 0 else { continue }
                 matched += 1
-                let df = Double(documentFrequency[term] ?? 1)
-                let idf = log(1 + (total - df + 0.5) / (df + 0.5))
-                let k1 = 1.2, b = 0.75
-                bm25 += idf * (frequency * (k1 + 1)) / (frequency + k1 * (1 - b + b * Double(document.count) / averageLength))
+                let df: Double = Double(documentFrequency[term] ?? 1)
+                let idf: Double = log(1.0 + (total - df + 0.5) / (df + 0.5))
+                let k1: Double = 1.2
+                let b: Double = 0.75
+                let lengthRatio: Double = Double(document.count) / averageLength
+                let norm: Double = k1 * (1.0 - b + b * lengthRatio)
+                let weight: Double = (frequency * (k1 + 1.0)) / (frequency + norm)
+                bm25 += idf * weight
             }
             guard matched > 0 else { continue }
-            let coverage = Double(matched) / Double(terms.count)
-            let ageDays = now.timeIntervalSince(items[index].updatedAt) / 86_400
-            let tieBreak = min(0.049, 0.01 * bm25 + 0.005 * exp(-ageDays / 30))
+            let coverage: Double = Double(matched) / Double(terms.count)
+            let ageDays: Double = now.timeIntervalSince(items[index].updatedAt) / 86_400
+            let recency: Double = 0.005 * exp(-ageDays / 30)
+            let tieBreak: Double = min(0.049, 0.01 * bm25 + recency)
             scored.append((items[index], coverage + tieBreak))
         }
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map { (item: $0.0, score: $0.1) }

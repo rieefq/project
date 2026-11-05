@@ -62,19 +62,15 @@ public struct FastPathParser: Sendable {
     public func parse(_ input: Utterance) -> FastPathResult? {
         let u = Self.core(input)
         guard !u.isEmpty else { return nil }
-        return parseReminder(u)
-            ?? parseTimer(u)
-            ?? parseAlarm(u)
-            ?? parseCalendar(u)
-            ?? parseMusic(u)
-            ?? parseWeather(u)
-            ?? parseTimeAndDate(u)
-            ?? parseMath(u)
-            ?? parseMessaging(u)
-            ?? parsePlaces(u)
-            ?? parseMemory(u)
-            ?? parsePreferences(u)
-            ?? parseHelp(u)
+        // Order matters: more specific grammars first.
+        let grammars: [(Utterance) -> FastPathResult?] = [
+            parseReminder, parseTimer, parseAlarm, parseCalendar, parseMusic, parseWeather, parseTimeAndDate,
+            parseMath, parseMessaging, parsePlaces, parseMemory, parsePreferences, parseHelp,
+        ]
+        for grammar in grammars {
+            if let result = grammar(u) { return result }
+        }
+        return nil
     }
 
     // MARK: Helpers
@@ -420,10 +416,17 @@ public struct FastPathParser: Sendable {
         var arguments: JSONValue = [:]
         if let when = whenText(u, consumed) { arguments["when"] = .string(when) }
         // Place: tokens after "in"/"for"/"at" that aren't temporal.
-        if let inIndex = norms.indices.first(where: { index in
-            index >= start && ["in", "for", "at"].contains(norms[index]) && !consumed.contains(index)
-                && index + 1 < norms.count && !consumed.contains(index + 1) && !["the", "a", "my"].contains(norms[index + 1]) || (index >= start && norms[index] == "in" && index + 2 < norms.count && norms[index + 1] == "the" && !consumed.contains(index + 2) && !["morning", "afternoon", "evening"].contains(norms[index + 2]))
-        }) {
+        func startsPlace(_ index: Int) -> Bool {
+            guard index >= start, index + 1 < norms.count, !consumed.contains(index), !consumed.contains(index + 1) else { return false }
+            let word = norms[index]
+            let next = norms[index + 1]
+            if ["in", "for", "at"].contains(word) && !["the", "a", "my"].contains(next) { return true }
+            if word == "in", next == "the", index + 2 < norms.count, !consumed.contains(index + 2) {
+                return !["morning", "afternoon", "evening"].contains(norms[index + 2])
+            }
+            return false
+        }
+        if let inIndex = norms.indices.first(where: startsPlace) {
             let placeRange = trimmedRange(u, (inIndex + 1)..<u.count, excluding: consumed, leading: ["the"], trailing: ["today", "tomorrow", "right", "now", "like", "outside"])
             let place = text(u, placeRange, excluding: consumed)
             if !place.isEmpty, !["here", "outside", "now"].contains(place.lowercased()) { arguments["place"] = .string(place) }

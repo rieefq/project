@@ -105,7 +105,7 @@ public struct CreateReminderTool: ToolHandler {
                 undo: UndoPlan(toolName: "delete_reminder", arguments: ["id": .string(record.id), "quiet": true], pastTense: "removed that reminder"),
                 referent: Referent(kind: .reminder, id: record.id, title: record.title, date: record.due, hasTime: when?.hasTime ?? false),
                 data: ["id": .string(record.id), "title": .string(record.title),
-                       "due": record.due.map { .string(ISODates.string($0, timeZone: context.temporal.timeZone)) } ?? .null],
+                       "due": JSONValue(record.due.map { ISODates.string($0, timeZone: context.temporal.timeZone) })],
                 earcon: .success))
         } catch {
             return .failed(ToolFailure(.service, message: "I couldn't save that reminder.", detail: "\(error)", isRetryable: true))
@@ -203,7 +203,7 @@ public struct ListRemindersTool: ToolHandler {
                 card: card,
                 data: ["reminders": .array(reminders.prefix(20).map { reminder -> JSONValue in
                     ["id": .string(reminder.id), "title": .string(reminder.title),
-                     "due": reminder.due.map { .string(ISODates.string($0, timeZone: context.temporal.timeZone)) } ?? .null]
+                     "due": JSONValue(reminder.due.map { ISODates.string($0, timeZone: context.temporal.timeZone) })]
                 })],
                 earcon: .none, isPersonal: true))
         } catch {
@@ -370,7 +370,7 @@ public struct UpdateReminderTool: ToolHandler {
                     undo: UndoPlan(toolName: "update_reminder", arguments: undoArguments, pastTense: "changed it back"),
                     referent: Referent(kind: .reminder, id: updated.id, title: updated.title, date: updated.due, hasTime: newWhen?.hasTime ?? updated.hasTime),
                     data: ["id": .string(updated.id), "title": .string(updated.title),
-                           "due": updated.due.map { .string(ISODates.string($0, timeZone: context.temporal.timeZone)) } ?? .null],
+                           "due": JSONValue(updated.due.map { ISODates.string($0, timeZone: context.temporal.timeZone) })],
                     earcon: .success))
             } catch {
                 return .failed(ToolFailure(.service, message: "I couldn't change that reminder.", detail: "\(error)", isRetryable: true))

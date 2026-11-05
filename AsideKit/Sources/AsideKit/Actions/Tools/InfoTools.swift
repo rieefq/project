@@ -97,18 +97,22 @@ public struct GetWeatherTool: ToolHandler {
                 symbol: (isToday ? report.current?.symbol : forecast?.symbol) ?? "cloud",
                 range: forecast.map { "H \(degrees($0.highCelsius, metric: metric))°  L \(degrees($0.lowCelsius, metric: metric))°" },
                 attribution: report.attribution))
+            var data: JSONValue = ["place": .string(report.placeName), "day": .string(dayPhrase), "units": .string(metric ? "celsius" : "fahrenheit")]
+            if let current = report.current {
+                let temperature: Double = Double(degrees(current.temperatureCelsius, metric: metric))
+                data["current"] = ["temperature": .number(temperature), "condition": .string(current.condition)]
+            }
+            if let forecast {
+                let high: Double = Double(degrees(forecast.highCelsius, metric: metric))
+                let low: Double = Double(degrees(forecast.lowCelsius, metric: metric))
+                data["forecast"] = ["high": .number(high), "low": .number(low), "condition": .string(forecast.condition),
+                                    "precipitation_chance": .number(forecast.precipitationChance)]
+            }
             return .completed(ActionResult(
                 summary: "Weather for \(report.placeName) \(dayPhrase)",
                 speech: SpeechPlan(minimal: minimal, balanced: balanced, detailed: balanced),
                 card: card,
-                data: [
-                    "place": .string(report.placeName), "day": .string(dayPhrase), "units": .string(metric ? "celsius" : "fahrenheit"),
-                    "current": report.current.map { ["temperature": .number(Double(degrees($0.temperatureCelsius, metric: metric))), "condition": .string($0.condition)] } ?? .null,
-                    "forecast": forecast.map { [
-                        "high": .number(Double(degrees($0.highCelsius, metric: metric))), "low": .number(Double(degrees($0.lowCelsius, metric: metric))),
-                        "condition": .string($0.condition), "precipitation_chance": .number($0.precipitationChance),
-                    ] } ?? .null,
-                ],
+                data: data,
                 earcon: .none))
         } catch let failure as ToolFailure {
             return .failed(failure)
@@ -168,7 +172,9 @@ public struct FindPlacesTool: ToolHandler {
                 card: .place(PlaceCard(name: first.name, address: first.address, latitude: first.latitude, longitude: first.longitude, travelSummary: distance)),
                 referent: Referent(kind: .place, id: first.id, title: first.name),
                 data: ["places": .array(places.prefix(5).map { place -> JSONValue in
-                    ["name": .string(place.name), "address": JSONValue(place.address), "distance_m": place.distanceMeters.map { .number($0.rounded()) } ?? .null]
+                    var entry: JSONValue = ["name": .string(place.name), "address": JSONValue(place.address)]
+                    if let meters = place.distanceMeters { entry["distance_m"] = .number(meters.rounded()) }
+                    return entry
                 })],
                 earcon: .none))
         } catch {
