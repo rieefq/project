@@ -5,7 +5,7 @@ import AsideKit
 
 /// Binding into stored preferences.
 @MainActor
-func preference<Value>(_ environment: AppEnvironment, _ keyPath: WritableKeyPath<Preferences, Value>) -> Binding<Value> {
+func setting<Value>(_ environment: AppEnvironment, _ keyPath: WritableKeyPath<Preferences, Value>) -> Binding<Value> {
     Binding(get: { environment.currentPreferences[keyPath: keyPath] },
             set: { value in environment.update { $0[keyPath: keyPath] = value } })
 }
@@ -19,19 +19,19 @@ struct VoiceSettings: View {
     var body: some View {
         Form {
             Section {
-                Picker("Voice", selection: preference(environment, \.voiceIdentifier)) {
+                Picker("Voice", selection: setting(environment, \.voiceIdentifier)) {
                     Text("Automatic (best available)").tag(String?.none)
                     ForEach(voices) { voice in
                         Text("\(voice.name) — \(voice.detail)").tag(String?.some(voice.id))
                     }
                 }
                 LabeledContent("Speaking rate") {
-                    Slider(value: preference(environment, \.speechRate), in: 0.35...0.65)
+                    Slider(value: setting(environment, \.speechRate), in: 0.35...0.65)
                 }
-                Picker("How much I say", selection: preference(environment, \.verbosity)) {
+                Picker("How much I say", selection: setting(environment, \.verbosity)) {
                     ForEach(Verbosity.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
-                Picker("Personality", selection: preference(environment, \.personality)) {
+                Picker("Personality", selection: setting(environment, \.personality)) {
                     ForEach(Personality.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
             } header: {
@@ -41,17 +41,17 @@ struct VoiceSettings: View {
             }
 
             Section("Speaking aloud") {
-                Picker("Speak", selection: preference(environment, \.speechPrivacy)) {
+                Picker("Speak", selection: setting(environment, \.speechPrivacy)) {
                     ForEach(SpeechPrivacy.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
-                Toggle("Interface sounds", isOn: preference(environment, \.playEarcons))
-                Toggle("Show live captions", isOn: preference(environment, \.showLiveCaption))
+                Toggle("Interface sounds", isOn: setting(environment, \.playEarcons))
+                Toggle("Show live captions", isOn: setting(environment, \.showLiveCaption))
             }
 
             Section {
-                Toggle("Let me interrupt while Aside talks", isOn: preference(environment, \.allowInterruptions))
-                Toggle("Keep listening after questions", isOn: preference(environment, \.autoListenAfterQuestions))
-                Toggle("Stay in conversation", isOn: preference(environment, \.conversationMode))
+                Toggle("Let me interrupt while Aside talks", isOn: setting(environment, \.allowInterruptions))
+                Toggle("Keep listening after questions", isOn: setting(environment, \.autoListenAfterQuestions))
+                Toggle("Stay in conversation", isOn: setting(environment, \.conversationMode))
             } header: {
                 Text("Conversation")
             } footer: {
@@ -87,10 +87,10 @@ struct IntelligenceSettings: View {
     var body: some View {
         Form {
             Section {
-                Picker("Understanding", selection: preference(environment, \.reasoningMode)) {
+                Picker("Understanding", selection: setting(environment, \.reasoningMode)) {
                     ForEach(ReasoningMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
-                Toggle("Use the on-device model", isOn: preference(environment, \.useOnDeviceModel))
+                Toggle("Use the on-device model", isOn: setting(environment, \.useOnDeviceModel))
                 LabeledContent("On-device model", value: OnDeviceIntentModel.statusDescription)
             } header: {
                 Text("Where requests are understood")
@@ -115,10 +115,10 @@ struct IntelligenceSettings: View {
                     }
                     .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                Picker("Model", selection: preference(environment, \.cloudModel)) {
+                Picker("Model", selection: setting(environment, \.cloudModel)) {
                     ForEach(models, id: \.0) { Text($0.1).tag($0.0) }
                 }
-                Toggle("Search the web for current information", isOn: preference(environment, \.allowWebSearch))
+                Toggle("Search the web for current information", isOn: setting(environment, \.allowWebSearch))
             } header: {
                 Text("Cloud")
             } footer: {
@@ -199,7 +199,7 @@ struct ConnectionsSettings: View {
                     }
                 }
                 if let spotifyError { Text(spotifyError).font(.footnote).foregroundStyle(.red) }
-                Picker("Play music with", selection: preference(environment, \.preferredMusicProvider)) {
+                Picker("Play music with", selection: setting(environment, \.preferredMusicProvider)) {
                     Text("Ask each time / automatic").tag(MusicProvider?.none)
                     ForEach(MusicProvider.allCases, id: \.self) { Text($0.displayName).tag(MusicProvider?.some($0)) }
                 }
@@ -253,8 +253,8 @@ struct MemorySettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Remember things I ask you to", isOn: preference(environment, \.memoryEnabled))
-                Picker("When Aside notices something", selection: preference(environment, \.learningMode)) {
+                Toggle("Remember things I ask you to", isOn: setting(environment, \.memoryEnabled))
+                Picker("When Aside notices something", selection: setting(environment, \.learningMode)) {
                     ForEach(LearningMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
             } footer: {
@@ -346,19 +346,19 @@ struct PrivacySettings: View {
             }
 
             Section("Suggestions") {
-                Toggle("Occasional helpful suggestions", isOn: preference(environment, \.proactiveSuggestions))
+                Toggle("Occasional helpful suggestions", isOn: setting(environment, \.proactiveSuggestions))
                 Stepper("At most \(environment.currentPreferences.maxProactiveNotificationsPerDay) a day",
-                        value: preference(environment, \.maxProactiveNotificationsPerDay), in: 0...10)
-                Picker("Quiet hours start", selection: preference(environment, \.quietHoursStart)) {
+                        value: setting(environment, \.maxProactiveNotificationsPerDay), in: 0...10)
+                Picker("Quiet hours start", selection: setting(environment, \.quietHoursStart)) {
                     ForEach(18..<24, id: \.self) { Text(hourLabel($0)).tag($0) }
                 }
-                Picker("Quiet hours end", selection: preference(environment, \.quietHoursEnd)) {
+                Picker("Quiet hours end", selection: setting(environment, \.quietHoursEnd)) {
                     ForEach(5..<11, id: \.self) { Text(hourLabel($0)).tag($0) }
                 }
             }
 
             Section {
-                Picker("Keep activity history", selection: preference(environment, \.journalRetentionDays)) {
+                Picker("Keep activity history", selection: setting(environment, \.journalRetentionDays)) {
                     Text("1 day").tag(1)
                     Text("7 days").tag(7)
                     Text("30 days").tag(30)
